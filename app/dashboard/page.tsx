@@ -77,43 +77,65 @@ export default function DashboardPage() {
 
   // ── Auth check + live verification status ──
   useEffect(() => {
-    const loadUser = async () => {
-      const raw = localStorage.getItem("user");
-      if (!raw) { router.push("/login"); return; }
+  const loadUser = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-      let stored: StoredUser;
-      try {
-        stored = JSON.parse(raw);
-      } catch {
-        router.push("/login");
-        return;
-      }
+    if (!session?.user) {
+      router.push("/login");
+      return;
+    }
 
-      if (stored.id) {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("verification_status, full_name, phone, email")
-          .eq("id", stored.id)
-          .single();
+    const raw = localStorage.getItem("user");
 
-        if (!error && data) {
-          stored = {
-            ...stored,
-            name:               data.full_name ?? stored.name,
-            phone:              data.phone ?? stored.phone,
-            email:              data.email ?? stored.email,
-            verificationStatus: data.verification_status as StoredUser["verificationStatus"],
-          };
-          localStorage.setItem("user", JSON.stringify(stored));
-        }
-      }
-
-      setUser(stored);
-      setChecking(false);
+    let stored: StoredUser = {
+      id: session.user.id,
+      name:
+        session.user.user_metadata?.full_name ||
+        "Movento User",
+      email: session.user.email || "",
+      phone: session.user.user_metadata?.phone || "",
+      verificationStatus: "unverified",
     };
 
-    loadUser();
-  }, [router]);
+    if (raw) {
+      try {
+        stored = JSON.parse(raw);
+      } catch {}
+    }
+
+    const { data } = await supabase
+      .from("profiles")
+      .select(
+        "verification_status, full_name, phone, email"
+      )
+      .eq("id", session.user.id)
+      .single();
+
+    if (data) {
+      stored = {
+        ...stored,
+        id: session.user.id,
+        name: data.full_name || stored.name,
+        email: data.email || stored.email,
+        phone: data.phone || stored.phone,
+        verificationStatus:
+          data.verification_status || "unverified",
+      };
+
+      localStorage.setItem(
+        "user",
+        JSON.stringify(stored)
+      );
+    }
+
+    setUser(stored);
+    setChecking(false);
+  };
+
+  loadUser();
+}, [router]);
 
   // ── Fetch real stats once we know the user ──
   useEffect(() => {
