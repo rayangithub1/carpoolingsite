@@ -2,77 +2,82 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
   const router = useRouter();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+  });
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const redirect =
-    typeof window !== "undefined"
-      ? new URLSearchParams(window.location.search).get("redirect") || "/dashboard"
-      : "/dashboard";
+  const handleChange = (k: string, v: string) => {
+    setForm((p) => ({ ...p, [k]: v }));
+    setError("");
+  };
 
-  const login = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password,
+      email: form.email.trim().toLowerCase(),
+      password: form.password,
     });
 
-    setLoading(false);
-
     if (error) {
-      setError("Invalid email or password");
+      setError(error.message);
+      setLoading(false);
       return;
     }
 
-    router.push(redirect);
+    router.push("/dashboard");
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white px-5">
-      <form onSubmit={login} className="w-full max-w-sm space-y-4">
+      <form onSubmit={handleLogin} className="w-full max-w-sm space-y-4">
 
-        <h1 className="text-2xl font-bold">Login</h1>
+        <h1 className="text-2xl font-bold">Welcome back</h1>
+        <p className="text-sm text-gray-500">Login to continue</p>
 
         <input
-          className="w-full h-12 px-3 border rounded-lg text-base"
+          className="w-full border rounded p-3 text-[16px]"
           placeholder="Email"
           type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          autoComplete="email"
+          value={form.email}
+          onChange={(e) => handleChange("email", e.target.value)}
         />
 
         <input
-          className="w-full h-12 px-3 border rounded-lg text-base"
+          className="w-full border rounded p-3 text-[16px]"
           placeholder="Password"
           type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
+          value={form.password}
+          onChange={(e) => handleChange("password", e.target.value)}
         />
 
-        {error && <p className="text-red-500 text-sm">{error}</p>}
+        {error && (
+          <p className="text-red-500 text-sm">{error}</p>
+        )}
 
         <button
           disabled={loading}
-          className="w-full h-12 bg-black text-white rounded-lg"
+          className="w-full bg-black text-white p-3 rounded font-bold"
         >
-          {loading ? "Logging in..." : "Login"}
+          {loading ? "Signing in..." : "Login"}
         </button>
 
-        <p className="text-sm text-center">
-          No account? <Link href="/signup" className="underline">Signup</Link>
+        <p className="text-sm text-center text-gray-500">
+          Don’t have an account?{" "}
+          <a href="/signup" className="font-bold text-black">
+            Sign up
+          </a>
         </p>
       </form>
     </div>
