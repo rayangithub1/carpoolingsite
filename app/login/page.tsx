@@ -30,8 +30,10 @@ function Field({
 
 export default function LoginPage() {
   const router       = useRouter();
-  const searchParams = useSearchParams();
-  const redirect     = searchParams.get("redirect") ?? "/dashboard";
+  const redirect =
+  typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("redirect") ?? "/dashboard"
+    : "/dashboard";
 
   const [form, setForm] = useState({ email: "", password: "" });
   const [errors,       setErrors]      = useState<Record<string, string>>({});
