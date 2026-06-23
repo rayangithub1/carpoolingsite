@@ -7,7 +7,8 @@ import Navbar from "@/components/Navbar";
 import { supabase } from "@/lib/supabaseClient";
 import {
   Car, Search, Star, Users, Clock, ArrowRight,
-  SlidersHorizontal, MapPin, CheckCircle,
+  SlidersHorizontal, MapPin, CheckCircle, X, ChevronDown,
+  Zap, Wind,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -101,143 +102,240 @@ const sortOptions = ["Departure Time", "Price: Low to High", "Price: High to Low
 // ─── Ride Card ────────────────────────────────────────────────────────────────
 
 function RideCard({ ride, onBook }: { ride: Ride; onBook: (id: string) => void }) {
+  const seatsUrgent = ride.seats <= 2;
+
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl hover:border-black hover:shadow-[0_4px_24px_rgba(0,0,0,0.07)] transition-all duration-200 group overflow-hidden">
-      <div className="p-6">
-        <div className="flex gap-6 items-start">
+    <div className="bg-white border border-gray-100 rounded-2xl hover:border-gray-300 hover:shadow-[0_8px_32px_rgba(0,0,0,0.08)] transition-all duration-200 overflow-hidden">
 
-          {/* Time column */}
-          <div className="flex-shrink-0 text-center w-[72px]">
-            <p className="text-[28px] font-black tracking-tight leading-none text-black tabular-nums">
-              {ride.departure.split(" ")[0]}
-            </p>
-            <p className="text-[11px] font-bold text-gray-400 mt-0.5">
-              {ride.departure.split(" ")[1]}
-            </p>
-            <div className="my-3 flex flex-col items-center gap-1">
-              <div className="w-px h-3 bg-gray-200" />
-              <Clock size={11} className="text-gray-300" />
-              <div className="w-px h-3 bg-gray-200" />
-            </div>
-          </div>
+      {/* Top strip */}
+      <div className="px-4 pt-4 pb-3 sm:px-6 sm:pt-5">
 
-          <div className="w-px self-stretch bg-gray-100 flex-shrink-0" />
-
-          {/* Main info */}
+        {/* Route + price row */}
+        <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap mb-4">
-              <span className="text-[15px] font-black text-black">{ride.from}</span>
+            {/* Time badge */}
+            <div className="inline-flex items-center gap-1.5 bg-black text-white text-[11px] font-black px-2.5 py-1 rounded-lg mb-2.5">
+              <Clock size={10} />
+              {ride.departure}
+            </div>
+            {/* Route */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[16px] sm:text-[18px] font-black text-black leading-tight">{ride.from}</span>
               <ArrowRight size={14} className="text-gray-300 flex-shrink-0" />
-              <span className="text-[15px] font-black text-black">{ride.to}</span>
-              {ride.femaleOnly && (
-                <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border bg-pink-50 text-pink-600 border-pink-200">
-                  Female Only
-                </span>
-              )}
-              {ride.acAvailable && (
-                <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border bg-blue-50 text-blue-600 border-blue-200">
-                  AC
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-black text-white flex-shrink-0 ${ride.avatarColor}`}>
-                {ride.driverInitial}
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-bold text-black">{ride.driver}</span>
-                  {ride.verified && <CheckCircle size={13} className="text-green-500 flex-shrink-0" />}
-                </div>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <Star size={11} className="fill-yellow-400 text-yellow-400" />
-                  <span className="text-xs font-bold tabular-nums">{ride.rating.toFixed(1)}</span>
-                  <span className="text-xs text-gray-400">({ride.reviews} reviews)</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 mt-4 flex-wrap">
-              <span className="text-[12px] px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-100 text-gray-600 font-medium">
-                {ride.car}{ride.carYear ? ` (${ride.carYear})` : ""}{ride.carColor ? ` · ${ride.carColor}` : ""}
-              </span>
-              <span className={`text-[12px] px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5 ${
-                ride.seats === 1
-                  ? "bg-red-50 text-red-600 border border-red-100"
-                  : "bg-gray-50 border border-gray-100 text-gray-600"
-              }`}>
-                <Users size={11} />
-                {ride.seats} {ride.seats === 1 ? "seat" : "seats"} left
-              </span>
+              <span className="text-[16px] sm:text-[18px] font-black text-green-600 leading-tight">{ride.to}</span>
             </div>
           </div>
 
-          {/* Price + CTA */}
-          <div className="flex-shrink-0 flex flex-col items-end justify-between self-stretch">
-            <div className="text-right">
-              <p className="text-[26px] font-black tracking-tight text-black tabular-nums leading-none">
-                Rs {ride.fare}
-              </p>
-              <p className="text-[11px] text-gray-400 mt-1">per seat</p>
-            </div>
-            <button
-              onClick={() => onBook(ride.id)}
-              className="mt-4 px-5 py-2.5 bg-black hover:bg-green-500 text-white text-[13px] font-bold rounded-xl transition-colors"
-            >
-              Book Seat
-            </button>
+          {/* Price */}
+          <div className="text-right flex-shrink-0">
+            <p className="text-[24px] sm:text-[28px] font-black text-black leading-none tabular-nums">
+              Rs {ride.fare}
+            </p>
+            <p className="text-[10px] text-gray-400 font-medium mt-0.5">per seat</p>
           </div>
-
         </div>
+
+        {/* Driver row */}
+        <div className="flex items-center gap-3">
+          <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-[13px] font-black text-white flex-shrink-0 ${ride.avatarColor}`}>
+            {ride.driverInitial}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[13px] font-bold text-black">{ride.driver}</span>
+              {ride.verified && <CheckCircle size={12} className="text-green-500 flex-shrink-0" />}
+              <div className="flex items-center gap-1">
+                <Star size={10} className="fill-yellow-400 text-yellow-400" />
+                <span className="text-[11px] font-bold text-gray-600">{ride.rating.toFixed(1)}</span>
+              </div>
+            </div>
+            <p className="text-[12px] text-gray-400 mt-0.5 truncate">
+              {ride.car}{ride.carColor ? ` · ${ride.carColor}` : ""}{ride.carYear ? ` · ${ride.carYear}` : ""}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom strip */}
+      <div className="border-t border-gray-50 px-4 py-3 sm:px-6 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Seats */}
+          <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg ${
+            seatsUrgent
+              ? "bg-red-50 text-red-600 border border-red-100"
+              : "bg-gray-50 text-gray-500 border border-gray-100"
+          }`}>
+            <Users size={10} />
+            {ride.seats} seat{ride.seats !== 1 ? "s" : ""} left
+            {seatsUrgent && " · Filling fast"}
+          </span>
+
+          {/* Tags */}
+          {ride.acAvailable && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-100">
+              <Wind size={10} /> AC
+            </span>
+          )}
+          {ride.femaleOnly && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-pink-50 text-pink-600 border border-pink-100">
+              Female only
+            </span>
+          )}
+        </div>
+
+        <button
+          onClick={() => onBook(ride.id)}
+          className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 bg-black hover:bg-green-500 text-white text-[13px] font-black rounded-xl transition-colors"
+        >
+          Book <ArrowRight size={13} />
+        </button>
       </div>
     </div>
   );
 }
 
-// ─── Inner page (uses useSearchParams) ───────────────────────────────────────
+// ─── Filter Sheet (mobile bottom drawer) ─────────────────────────────────────
+
+function FilterSheet({
+  open, onClose, maxFare, setMaxFare, minRating, setMinRating,
+  origin, setOrigin, destination, setDestination,
+}: {
+  open: boolean; onClose: () => void;
+  maxFare: number; setMaxFare: (v: number) => void;
+  minRating: number; setMinRating: (v: number) => void;
+  origin: string; setOrigin: (v: string) => void;
+  destination: string; setDestination: (v: string) => void;
+}) {
+  if (!open) return null;
+  return (
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={onClose} />
+      {/* Sheet */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl lg:hidden max-h-[85vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white px-5 pt-4 pb-3 border-b border-gray-100 flex items-center justify-between">
+          <p className="text-[15px] font-black">Filters</p>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200">
+            <X size={15} />
+          </button>
+        </div>
+        <div className="px-5 py-4 space-y-6">
+
+          {/* Max fare */}
+          <div>
+            <div className="flex justify-between mb-3">
+              <p className="text-[13px] font-bold text-gray-800">Max Fare</p>
+              <span className="text-[13px] font-black">Rs {maxFare}</span>
+            </div>
+            <input type="range" min={150} max={600} step={25} value={maxFare}
+              onChange={(e) => setMaxFare(Number(e.target.value))}
+              className="w-full accent-green-500 cursor-pointer" />
+            <div className="flex justify-between text-[11px] text-gray-400 mt-1">
+              <span>Rs 150</span><span>Rs 600</span>
+            </div>
+          </div>
+
+          {/* Min rating */}
+          <div>
+            <p className="text-[13px] font-bold text-gray-800 mb-3">Min Rating</p>
+            <div className="grid grid-cols-4 gap-2">
+              {[0, 4.5, 4.7, 4.9].map((r) => (
+                <button key={r} onClick={() => setMinRating(r)}
+                  className={`py-2 rounded-xl text-[12px] font-bold border transition-colors ${
+                    minRating === r ? "bg-black text-white border-black" : "border-gray-200 text-gray-600"
+                  }`}>
+                  {r === 0 ? "Any" : `${r}+`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* From */}
+          <div>
+            <p className="text-[13px] font-bold text-gray-800 mb-3">From</p>
+            <div className="grid grid-cols-2 gap-2">
+              {["All", "Bahria Town Karachi", "North Nazimabad", "Gulistan-e-Johar", "Korangi", "Malir"].map((o) => {
+                const val = o === "All" ? "" : o;
+                return (
+                  <button key={o} onClick={() => setOrigin(val)}
+                    className={`py-2 px-3 rounded-xl text-[12px] font-medium text-left border transition-colors ${
+                      origin === val ? "bg-black text-white border-black" : "border-gray-200 text-gray-600"
+                    }`}>
+                    {o}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* To */}
+          <div>
+            <p className="text-[13px] font-bold text-gray-800 mb-3">To</p>
+            <div className="grid grid-cols-2 gap-2">
+              {["All", "DHA Phase 5", "Clifton", "Gulshan-e-Iqbal", "Shahrah-e-Faisal", "PECHS", "Saddar"].map((d) => {
+                const val = d === "All" ? "" : d;
+                return (
+                  <button key={d} onClick={() => setDestination(val)}
+                    className={`py-2 px-3 rounded-xl text-[12px] font-medium text-left border transition-colors ${
+                      destination === val ? "bg-black text-white border-black" : "border-gray-200 text-gray-600"
+                    }`}>
+                    {d}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <button onClick={onClose}
+            className="w-full py-3.5 bg-black text-white font-black text-[14px] rounded-2xl">
+            Show rides
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Inner page ───────────────────────────────────────────────────────────────
 
 function FindRideInner() {
   const router       = useRouter();
   const searchParams = useSearchParams();
 
-  const [rides, setRides]           = useState<Ride[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [loadError, setLoadError]   = useState("");
-  const [origin, setOrigin]         = useState("");
+  const [rides, setRides]             = useState<Ride[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [loadError, setLoadError]     = useState("");
+  const [origin, setOrigin]           = useState("");
   const [destination, setDestination] = useState("");
-  const [dateFilter, setDateFilter] = useState("");
-  const [timeFilter, setTimeFilter] = useState("");
-  const [sortBy, setSortBy]         = useState("Departure Time");
-  const [maxFare, setMaxFare]       = useState(600);
-  const [minRating, setMinRating]   = useState(0);
-  const [user, setUser]             = useState<{ name: string } | null>(null);
+  const [dateFilter, setDateFilter]   = useState("");
+  const [timeFilter, setTimeFilter]   = useState("");
+  const [sortBy, setSortBy]           = useState("Departure Time");
+  const [maxFare, setMaxFare]         = useState(600);
+  const [minRating, setMinRating]     = useState(0);
+  const [user, setUser]               = useState<{ name: string } | null>(null);
+  const [filterOpen, setFilterOpen]   = useState(false);
 
-  // ── Read search params from homepage ──
+  // Read search params from homepage
   useEffect(() => {
     const from = searchParams.get("from");
     const to   = searchParams.get("to");
     const date = searchParams.get("date");
     const time = searchParams.get("time");
-
     if (from) setOrigin(from);
     if (to)   setDestination(to);
     if (date) setDateFilter(date);
     if (time) setTimeFilter(time);
   }, [searchParams]);
 
-  // ── Fetch rides ──
+  // Fetch rides
   useEffect(() => {
     const fetchRides = async () => {
       setLoading(true);
       setLoadError("");
       try {
         const { data, error } = await supabase
-          .from("rides")
-          .select("*")
-          .eq("status", "active")
+          .from("rides").select("*").eq("status", "active")
           .order("created_at", { ascending: false });
-
         if (error) throw new Error(error.message);
         setRides((data as RideRow[] ?? []).map(mapRowToRide));
       } catch (err) {
@@ -249,7 +347,6 @@ function FindRideInner() {
     fetchRides();
   }, []);
 
-  // ── Load user ──
   useEffect(() => {
     const stored = localStorage.getItem("user");
     if (stored) setUser(JSON.parse(stored));
@@ -260,9 +357,16 @@ function FindRideInner() {
     router.push(`/booking/${rideId}`);
   };
 
+  const clearAll = () => {
+    setOrigin(""); setDestination(""); setDateFilter("");
+    setTimeFilter(""); setMaxFare(600); setMinRating(0);
+  };
+
+  const hasFilters = origin || destination || dateFilter || timeFilter || maxFare < 600 || minRating > 0;
+
   const filtered = rides
-    .filter((r) => origin      ? r.from.toLowerCase().includes(origin.toLowerCase())           : true)
-    .filter((r) => destination ? r.to.toLowerCase().includes(destination.toLowerCase())        : true)
+    .filter((r) => origin      ? r.from.toLowerCase().includes(origin.toLowerCase())      : true)
+    .filter((r) => destination ? r.to.toLowerCase().includes(destination.toLowerCase())   : true)
     .filter((r) => r.fare <= maxFare)
     .filter((r) => r.rating >= minRating)
     .sort((a, b) => {
@@ -273,151 +377,151 @@ function FindRideInner() {
     });
 
   return (
-    <div className="min-h-screen bg-[#f9f9f8] flex flex-col">
+    <div className="min-h-screen bg-[#f5f5f3] flex flex-col">
       <Navbar />
 
-      {/* ── SEARCH BAR ── */}
-      <div className="flex-shrink-0 bg-black pt-[76px]">
-        <div className="max-w-[1100px] mx-auto px-6 py-6">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-2">Find a Ride</p>
-          <h1 className="text-3xl font-black text-white tracking-tight mb-5">Where are you headed?</h1>
-          <div className="flex items-center gap-2 flex-wrap">
+      {/* ── SEARCH HEADER ── */}
+      <div className="bg-black pt-[76px]">
+        <div className="max-w-[1100px] mx-auto px-4 sm:px-6 py-5 sm:py-7">
 
-            <div className="relative flex items-center flex-1 min-w-[160px]">
-              <MapPin size={13} className="absolute left-3 text-green-400 pointer-events-none" />
+          {/* Title */}
+          <div className="mb-4 sm:mb-5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">Find a Ride</p>
+            <h1 className="text-[22px] sm:text-[28px] font-black text-white tracking-tight">Where are you headed?</h1>
+          </div>
+
+          {/* Search controls */}
+          <div className="flex flex-col sm:flex-row gap-2">
+
+            {/* From */}
+            <div className="relative flex-1">
+              <MapPin size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-green-400 pointer-events-none z-10" />
               <select
-                className="w-full h-11 bg-white/10 hover:bg-white/15 border border-white/10 text-white rounded-xl pl-8 pr-3 text-[13px] font-semibold focus:outline-none focus:border-green-400 transition-colors appearance-none"
                 value={origin || "All Origins"}
                 onChange={(e) => setOrigin(e.target.value === "All Origins" ? "" : e.target.value)}
+                className="w-full h-11 bg-white/10 border border-white/10 text-white rounded-xl pl-9 pr-8 text-[13px] font-semibold focus:outline-none focus:border-green-400 transition-colors appearance-none"
               >
-                {origins.map((o) => (
-                  <option key={o} value={o} className="bg-black text-white">{o}</option>
-                ))}
+                {origins.map((o) => <option key={o} value={o} className="bg-black">{o}</option>)}
               </select>
+              <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
             </div>
 
-            <ArrowRight size={14} className="text-gray-600 flex-shrink-0 hidden sm:block" />
+            {/* Arrow — desktop only */}
+            <div className="hidden sm:flex items-center">
+              <ArrowRight size={14} className="text-gray-600" />
+            </div>
 
-            <div className="flex-1 min-w-[140px]">
+            {/* To */}
+            <div className="relative flex-1">
               <select
-                className="w-full h-11 bg-white/10 hover:bg-white/15 border border-white/10 text-white rounded-xl px-3 text-[13px] font-semibold focus:outline-none focus:border-green-400 transition-colors appearance-none"
                 value={destination || "All Destinations"}
                 onChange={(e) => setDestination(e.target.value === "All Destinations" ? "" : e.target.value)}
+                className="w-full h-11 bg-white/10 border border-white/10 text-white rounded-xl px-4 pr-8 text-[13px] font-semibold focus:outline-none focus:border-green-400 transition-colors appearance-none"
               >
-                {destinations.map((d) => (
-                  <option key={d} value={d} className="bg-black text-white">{d}</option>
-                ))}
+                {destinations.map((d) => <option key={d} value={d} className="bg-black">{d}</option>)}
               </select>
+              <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
             </div>
 
+            {/* Date */}
             <input
               type="date"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              className="h-11 bg-white/10 hover:bg-white/15 border border-white/10 text-white rounded-xl px-3 text-[13px] font-semibold focus:outline-none focus:border-green-400 transition-colors"
+              className="h-11 bg-white/10 border border-white/10 text-white rounded-xl px-3 text-[13px] font-semibold focus:outline-none focus:border-green-400 transition-colors sm:w-40"
             />
 
-            <select
-              value={timeFilter}
-              onChange={(e) => setTimeFilter(e.target.value)}
-              className="h-11 bg-white/10 hover:bg-white/15 border border-white/10 text-white rounded-xl px-3 text-[13px] font-semibold focus:outline-none focus:border-green-400 transition-colors appearance-none"
-            >
-              <option value="" className="bg-black">Any time</option>
-              <option className="bg-black">Before 7:00 AM</option>
-              <option className="bg-black">7:00 – 9:00 AM</option>
-              <option className="bg-black">9:00 – 12:00 PM</option>
-              <option className="bg-black">After 12:00 PM</option>
-            </select>
-
-            <button
-              onClick={() => { setOrigin(""); setDestination(""); setDateFilter(""); setTimeFilter(""); }}
-              className="h-11 px-4 border border-white/10 hover:border-white/30 text-white/60 hover:text-white font-bold text-[13px] rounded-xl transition-colors flex-shrink-0"
-            >
-              Clear
-            </button>
-
-            <button className="h-11 px-6 bg-green-500 hover:bg-green-600 text-white font-bold text-[13px] rounded-xl flex items-center gap-2 transition-colors flex-shrink-0">
+            {/* Search button */}
+            <button className="h-11 px-5 bg-green-500 hover:bg-green-600 text-white font-black text-[13px] rounded-xl flex items-center justify-center gap-2 transition-colors">
               <Search size={14} /> Search
             </button>
-
           </div>
 
           {/* Active filter pills */}
-          {(origin || destination || dateFilter) && (
+          {hasFilters && (
             <div className="flex gap-2 mt-3 flex-wrap">
               {origin && (
-                <span className="flex items-center gap-1.5 text-[11px] font-bold bg-white/10 text-white/70 px-3 py-1 rounded-full">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold bg-white/10 text-white/70 px-3 py-1.5 rounded-full">
                   From: {origin}
-                  <button onClick={() => setOrigin("")} className="hover:text-white ml-1">×</button>
+                  <button onClick={() => setOrigin("")} className="hover:text-white"><X size={10} /></button>
                 </span>
               )}
               {destination && (
-                <span className="flex items-center gap-1.5 text-[11px] font-bold bg-white/10 text-white/70 px-3 py-1 rounded-full">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold bg-white/10 text-white/70 px-3 py-1.5 rounded-full">
                   To: {destination}
-                  <button onClick={() => setDestination("")} className="hover:text-white ml-1">×</button>
+                  <button onClick={() => setDestination("")} className="hover:text-white"><X size={10} /></button>
                 </span>
               )}
               {dateFilter && (
-                <span className="flex items-center gap-1.5 text-[11px] font-bold bg-white/10 text-white/70 px-3 py-1 rounded-full">
-                  Date: {dateFilter}
-                  <button onClick={() => setDateFilter("")} className="hover:text-white ml-1">×</button>
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold bg-white/10 text-white/70 px-3 py-1.5 rounded-full">
+                  {dateFilter}
+                  <button onClick={() => setDateFilter("")} className="hover:text-white"><X size={10} /></button>
                 </span>
               )}
+              {maxFare < 600 && (
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold bg-white/10 text-white/70 px-3 py-1.5 rounded-full">
+                  Max Rs {maxFare}
+                  <button onClick={() => setMaxFare(600)} className="hover:text-white"><X size={10} /></button>
+                </span>
+              )}
+              <button onClick={clearAll} className="text-[11px] font-bold text-white/40 hover:text-white/70 underline underline-offset-2">
+                Clear all
+              </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* ── MAIN BODY ── */}
-      <div className="flex-1 max-w-[1100px] mx-auto w-full px-4 py-6 flex gap-6 items-start">
+      {/* ── BODY ── */}
+      <div className="flex-1 max-w-[1100px] mx-auto w-full px-4 sm:px-6 py-5 flex gap-6 items-start">
 
-        {/* ── SIDEBAR ── */}
-        <aside className="hidden lg:flex flex-col gap-4 w-60 flex-shrink-0 sticky top-[76px]">
+        {/* ── SIDEBAR (desktop) ── */}
+        <aside className="hidden lg:flex flex-col gap-4 w-56 flex-shrink-0 sticky top-[88px]">
 
-          <div className="border-2 border-black rounded-2xl overflow-hidden">
-            <div className="bg-black px-5 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Live stats</p>
+          {/* Live stats */}
+          <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-50">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Live</p>
             </div>
             {[
-              { label: "Available rides", value: `${filtered.length} of ${rides.length}` },
+              { label: "Rides available", value: `${filtered.length}` },
               { label: "Active drivers",  value: `${new Set(rides.map((r) => r.driver)).size}` },
-              { label: "Avg fare today",  value: rides.length ? `Rs ${Math.round(rides.reduce((s, r) => s + r.fare, 0) / rides.length)}` : "—" },
+              { label: "Avg fare",        value: rides.length ? `Rs ${Math.round(rides.reduce((s, r) => s + r.fare, 0) / rides.length)}` : "—" },
             ].map((s, i) => (
-              <div key={s.label} className={`px-5 py-3.5 flex justify-between items-center bg-white ${i < 2 ? "border-b border-gray-100" : ""}`}>
-                <span className="text-xs font-medium text-gray-500">{s.label}</span>
-                <span className="text-sm font-black tabular-nums">{s.value}</span>
+              <div key={s.label} className={`px-4 py-3 flex justify-between items-center ${i < 2 ? "border-b border-gray-50" : ""}`}>
+                <span className="text-[12px] text-gray-500">{s.label}</span>
+                <span className="text-[13px] font-black tabular-nums">{s.value}</span>
               </div>
             ))}
           </div>
 
-          <div className="border-2 border-black rounded-2xl overflow-hidden">
-            <div className="bg-black px-5 py-3 flex items-center gap-2">
+          {/* Filters */}
+          <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-50 flex items-center gap-2">
               <SlidersHorizontal size={12} className="text-gray-400" />
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Filters</p>
             </div>
 
-            <div className="px-5 py-4 border-b border-gray-100 bg-white">
-              <div className="flex justify-between items-center mb-3">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Max Fare</p>
-                <span className="text-sm font-black tabular-nums">Rs {maxFare}</span>
+            <div className="px-4 py-4 border-b border-gray-50">
+              <div className="flex justify-between mb-2">
+                <p className="text-[11px] font-bold text-gray-600">Max Fare</p>
+                <span className="text-[11px] font-black">Rs {maxFare}</span>
               </div>
-              <input
-                type="range" min={150} max={600} step={25} value={maxFare}
+              <input type="range" min={150} max={600} step={25} value={maxFare}
                 onChange={(e) => setMaxFare(Number(e.target.value))}
-                className="w-full accent-green-500 h-1 cursor-pointer"
-              />
-              <div className="flex justify-between text-[10px] text-gray-300 mt-1.5 font-medium">
+                className="w-full accent-green-500 h-1 cursor-pointer" />
+              <div className="flex justify-between text-[10px] text-gray-300 mt-1">
                 <span>Rs 150</span><span>Rs 600</span>
               </div>
             </div>
 
-            <div className="px-5 py-4 border-b border-gray-100 bg-white">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-3">Min Rating</p>
-              <div className="flex gap-2 flex-wrap">
+            <div className="px-4 py-4 border-b border-gray-50">
+              <p className="text-[11px] font-bold text-gray-600 mb-2.5">Min Rating</p>
+              <div className="flex gap-1.5 flex-wrap">
                 {[0, 4.5, 4.7, 4.9].map((r) => (
                   <button key={r} onClick={() => setMinRating(r)}
-                    className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors ${
-                      minRating === r ? "bg-black text-white border-black" : "border-gray-200 text-gray-600 hover:border-black"
+                    className={`text-[11px] font-bold px-2.5 py-1.5 rounded-lg border transition-colors ${
+                      minRating === r ? "bg-black text-white border-black" : "border-gray-200 text-gray-500 hover:border-gray-400"
                     }`}>
                     {r === 0 ? "Any" : `${r}+`}
                   </button>
@@ -425,15 +529,15 @@ function FindRideInner() {
               </div>
             </div>
 
-            <div className="px-5 py-4 border-b border-gray-100 bg-white">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-3">From</p>
+            <div className="px-4 py-4 border-b border-gray-50">
+              <p className="text-[11px] font-bold text-gray-600 mb-2">From</p>
               <div className="flex flex-col gap-0.5">
                 {["All", "Bahria Town Karachi", "North Nazimabad", "Gulistan-e-Johar", "Korangi", "Malir"].map((o) => {
                   const val = o === "All" ? "" : o;
                   return (
                     <button key={o} onClick={() => setOrigin(val)}
-                      className={`text-left text-[13px] px-3 py-2 rounded-lg font-medium transition-colors ${
-                        origin === val ? "bg-black text-white" : "text-gray-600 hover:bg-gray-50"
+                      className={`text-left text-[12px] px-2.5 py-1.5 rounded-lg transition-colors ${
+                        origin === val ? "bg-black text-white font-bold" : "text-gray-500 hover:bg-gray-50"
                       }`}>
                       {o}
                     </button>
@@ -442,15 +546,15 @@ function FindRideInner() {
               </div>
             </div>
 
-            <div className="px-5 py-4 bg-white">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-3">To</p>
+            <div className="px-4 py-4">
+              <p className="text-[11px] font-bold text-gray-600 mb-2">To</p>
               <div className="flex flex-col gap-0.5">
                 {["All", "DHA Phase 5", "Clifton", "Gulshan-e-Iqbal", "Shahrah-e-Faisal", "PECHS", "Saddar"].map((d) => {
                   const val = d === "All" ? "" : d;
                   return (
                     <button key={d} onClick={() => setDestination(val)}
-                      className={`text-left text-[13px] px-3 py-2 rounded-lg font-medium transition-colors ${
-                        destination === val ? "bg-black text-white" : "text-gray-600 hover:bg-gray-50"
+                      className={`text-left text-[12px] px-2.5 py-1.5 rounded-lg transition-colors ${
+                        destination === val ? "bg-black text-white font-bold" : "text-gray-500 hover:bg-gray-50"
                       }`}>
                       {d}
                     </button>
@@ -460,16 +564,15 @@ function FindRideInner() {
             </div>
           </div>
 
-          <div className="bg-black rounded-2xl px-5 py-6 relative overflow-hidden">
+          {/* Offer ride CTA */}
+          <div className="bg-black rounded-2xl p-5 relative overflow-hidden">
             <div className="absolute inset-0 opacity-[0.05] pointer-events-none"
-              style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
-            <Car size={18} className="text-green-400 mb-3 relative z-10" />
-            <p className="text-sm font-black text-white leading-tight mb-1 relative z-10">Have a car?</p>
-            <p className="text-xs text-gray-400 leading-relaxed mb-4 relative z-10">
-              Offer your empty seats and earn back your fuel costs every day.
-            </p>
+              style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "18px 18px" }} />
+            <Car size={16} className="text-green-400 mb-3 relative z-10" />
+            <p className="text-[13px] font-black text-white mb-1 relative z-10">Have empty seats?</p>
+            <p className="text-[11px] text-gray-400 mb-4 leading-relaxed relative z-10">Earn back your fuel cost every day.</p>
             <Link href="/offer-ride"
-              className="relative z-10 block text-center text-xs font-bold bg-green-500 hover:bg-green-600 text-white py-2.5 rounded-xl transition-colors">
+              className="relative z-10 block text-center text-[12px] font-black bg-green-500 hover:bg-green-600 text-white py-2.5 rounded-xl transition-colors">
               Offer a Ride →
             </Link>
           </div>
@@ -478,77 +581,128 @@ function FindRideInner() {
 
         {/* ── RESULTS ── */}
         <main className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+
+          {/* Toolbar */}
+          <div className="flex items-center justify-between mb-4 gap-3">
             <div>
-              <h2 className="text-[20px] font-black tracking-tight">
-                {filtered.length} {filtered.length === 1 ? "ride" : "rides"} available
+              <h2 className="text-[16px] sm:text-[18px] font-black tracking-tight">
+                {loading ? "Finding rides…" : `${filtered.length} ride${filtered.length !== 1 ? "s" : ""} found`}
               </h2>
-              <p className="text-[12px] text-gray-400 mt-0.5">
-                {origin || "All origins"} → {destination || "All destinations"}
-                {dateFilter ? ` · ${dateFilter}` : " · Today"}
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                {origin || "All areas"} → {destination || "Anywhere"}
+                {dateFilter ? ` · ${dateFilter}` : ""}
               </p>
             </div>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="h-9 text-[12px] font-bold border-2 border-gray-200 hover:border-black rounded-xl px-3 bg-white transition-colors focus:outline-none focus:border-black appearance-none"
-            >
-              {sortOptions.map((opt) => <option key={opt}>{opt}</option>)}
-            </select>
+
+            <div className="flex items-center gap-2">
+              {/* Mobile filter button */}
+              <button
+                onClick={() => setFilterOpen(true)}
+                className="lg:hidden flex items-center gap-1.5 h-9 px-3.5 bg-white border border-gray-200 hover:border-black text-[12px] font-bold rounded-xl transition-colors"
+              >
+                <SlidersHorizontal size={13} />
+                Filters
+                {hasFilters && <span className="w-4 h-4 bg-black text-white text-[9px] font-black rounded-full flex items-center justify-center">!</span>}
+              </button>
+
+              {/* Sort */}
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="h-9 text-[12px] font-bold border border-gray-200 hover:border-black rounded-xl pl-3 pr-8 bg-white transition-colors focus:outline-none appearance-none"
+                >
+                  {sortOptions.map((opt) => <option key={opt}>{opt}</option>)}
+                </select>
+                <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
           </div>
 
+          {/* States */}
           {loading ? (
             <div className="flex flex-col gap-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-white border border-gray-100 rounded-2xl h-32 animate-pulse" />
+                <div key={i} className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+                  <div className="p-4 sm:p-5 space-y-3">
+                    <div className="h-5 w-32 bg-gray-100 rounded-lg animate-pulse" />
+                    <div className="h-7 w-56 bg-gray-100 rounded-lg animate-pulse" />
+                    <div className="h-4 w-40 bg-gray-100 rounded-lg animate-pulse" />
+                  </div>
+                  <div className="border-t border-gray-50 p-4 flex justify-between">
+                    <div className="h-6 w-24 bg-gray-100 rounded-lg animate-pulse" />
+                    <div className="h-8 w-20 bg-gray-100 rounded-xl animate-pulse" />
+                  </div>
+                </div>
               ))}
             </div>
           ) : loadError ? (
-            <div className="border-2 border-dashed border-red-200 rounded-2xl p-16 text-center bg-white">
-              <p className="font-black text-lg mb-2 text-red-600">Couldn't load rides</p>
-              <p className="text-[13px] text-gray-400">{loadError}</p>
+            <div className="bg-white border border-red-100 rounded-2xl p-10 text-center">
+              <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <X size={20} className="text-red-400" />
+              </div>
+              <p className="font-black text-[16px] mb-1">Couldn't load rides</p>
+              <p className="text-[13px] text-gray-400 mb-5">{loadError}</p>
+              <button onClick={() => window.location.reload()}
+                className="px-5 py-2.5 bg-black text-white text-[13px] font-bold rounded-xl hover:bg-gray-800 transition-colors">
+                Try again
+              </button>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="border-2 border-dashed border-gray-200 rounded-2xl p-16 text-center bg-white">
-              <Search size={28} className="text-gray-200 mx-auto mb-4" />
-              <p className="font-black text-lg mb-2">No rides found</p>
-              <p className="text-[13px] text-gray-400 mb-6">
+            <div className="bg-white border border-gray-100 rounded-2xl p-10 sm:p-16 text-center">
+              <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Car size={22} className="text-gray-300" />
+              </div>
+              <p className="font-black text-[16px] mb-1">No rides found</p>
+              <p className="text-[13px] text-gray-400 mb-6 max-w-xs mx-auto">
                 {rides.length === 0
-                  ? "No one has published a ride yet. Be the first driver!"
-                  : "Try a different route or adjust your filters."}
+                  ? "No rides have been posted yet. Be the first driver on this route."
+                  : "Try a different route or loosen your filters."}
               </p>
-              <button
-                onClick={() => { setOrigin(""); setDestination(""); setMaxFare(600); setMinRating(0); setDateFilter(""); setTimeFilter(""); }}
-                className="px-6 py-2.5 bg-black text-white text-[13px] font-bold rounded-xl hover:bg-gray-800 transition-colors"
-              >
-                Clear filters
-              </button>
+              <div className="flex gap-2 justify-center flex-wrap">
+                {hasFilters && (
+                  <button onClick={clearAll}
+                    className="px-5 py-2.5 bg-black text-white text-[13px] font-bold rounded-xl hover:bg-gray-800 transition-colors">
+                    Clear filters
+                  </button>
+                )}
+                <Link href="/offer-ride"
+                  className="px-5 py-2.5 border border-gray-200 hover:border-black text-[13px] font-bold rounded-xl transition-colors flex items-center gap-1.5">
+                  <Zap size={13} /> Offer a ride
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
               {filtered.map((ride) => (
                 <RideCard key={ride.id} ride={ride} onBook={handleBook} />
               ))}
+              <p className="text-[11px] text-center text-gray-300 mt-4 font-medium">
+                {filtered.length} ride{filtered.length !== 1 ? "s" : ""} shown · Live results
+              </p>
             </div>
-          )}
-
-          {filtered.length > 0 && (
-            <p className="text-[11px] text-center text-gray-300 mt-8 font-medium">
-              All {filtered.length} rides shown · Updated just now
-            </p>
           )}
         </main>
       </div>
+
+      {/* Mobile filter sheet */}
+      <FilterSheet
+        open={filterOpen} onClose={() => setFilterOpen(false)}
+        maxFare={maxFare} setMaxFare={setMaxFare}
+        minRating={minRating} setMinRating={setMinRating}
+        origin={origin} setOrigin={setOrigin}
+        destination={destination} setDestination={setDestination}
+      />
     </div>
   );
 }
 
-// ─── Page (wraps inner in Suspense for useSearchParams) ───────────────────────
+// ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function FindRidePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#f9f9f8] flex items-center justify-center">
+      <div className="min-h-screen bg-[#f5f5f3] flex items-center justify-center">
         <span className="w-6 h-6 border-2 border-black/20 border-t-black rounded-full animate-spin" />
       </div>
     }>
