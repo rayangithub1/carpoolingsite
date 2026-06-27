@@ -222,7 +222,7 @@ export default function Navbar() {
               <Car size={14} className="text-green-400" />
             </div>
             <span className={`font-black text-[16px] tracking-tight transition-colors ${logo}`}>
-              carpoolkhi<span className="text-green-400">.</span>
+              movento<span className="text-green-400">.</span>
             </span>
           </Link>
 
