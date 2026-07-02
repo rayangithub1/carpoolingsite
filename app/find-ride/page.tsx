@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabaseClient";
 import {
   Car, Search, Star, Users, Clock, ArrowRight,
   SlidersHorizontal, MapPin, CheckCircle, X, ChevronDown,
-  Zap, Wind,
+  Zap, Wind, Repeat,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -31,6 +31,8 @@ interface Ride {
   seats: number;
   femaleOnly?: boolean;
   acAvailable?: boolean;
+  recurring?: boolean;
+  recurringDays?: string[];
 }
 
 interface RideRow {
@@ -50,6 +52,8 @@ interface RideRow {
   notes: string | null;
   female_only?: boolean | null;
   ac_available?: boolean | null;
+  recurring?: boolean | null;
+  recurring_days?: string[] | null;
   status: string;
   created_at: string;
 }
@@ -59,10 +63,26 @@ const AVATAR_COLORS = [
   "bg-violet-500", "bg-cyan-600", "bg-emerald-600", "bg-rose-500",
 ];
 
+const DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+
 function colorForId(id: string): string {
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = (hash + id.charCodeAt(i)) % AVATAR_COLORS.length;
   return AVATAR_COLORS[hash];
+}
+
+// Turns a set of selected days into a short, scannable tag:
+// all 7 → "Daily", Mon-Fri → "Mon–Fri", Sat+Sun → "Weekends", else the days themselves
+function recurringLabel(days: string[]): string {
+  if (!days.length) return "";
+  const sorted = [...days].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
+  const key = sorted.join(",");
+  if (sorted.length === 7) return "Daily";
+  if (key === WEEKDAYS.join(",")) return "Mon–Fri";
+  if (key === "Sat,Sun") return "Weekends";
+  if (sorted.length <= 3) return sorted.join(", ");
+  return `${sorted.length}x weekly`;
 }
 
 function mapRowToRide(row: RideRow): Ride {
@@ -84,6 +104,8 @@ function mapRowToRide(row: RideRow): Ride {
     seats: row.seats,
     femaleOnly: row.female_only ?? false,
     acAvailable: row.ac_available ?? false,
+    recurring: row.recurring ?? false,
+    recurringDays: row.recurring_days ?? [],
   };
 }
 
@@ -103,6 +125,7 @@ const sortOptions = ["Departure Time", "Price: Low to High", "Price: High to Low
 
 function RideCard({ ride, onBook }: { ride: Ride; onBook: (id: string) => void }) {
   const seatsUrgent = ride.seats <= 2;
+  const isRecurring = !!ride.recurring && !!ride.recurringDays && ride.recurringDays.length > 0;
 
   return (
     <div className="bg-white border border-gray-100 rounded-2xl hover:border-gray-300 hover:shadow-[0_8px_32px_rgba(0,0,0,0.08)] transition-all duration-200 overflow-hidden">
@@ -113,10 +136,18 @@ function RideCard({ ride, onBook }: { ride: Ride; onBook: (id: string) => void }
         {/* Route + price row */}
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex-1 min-w-0">
-            {/* Time badge */}
-            <div className="inline-flex items-center gap-1.5 bg-black text-white text-[11px] font-black px-2.5 py-1 rounded-lg mb-2.5">
-              <Clock size={10} />
-              {ride.departure}
+            {/* Time + recurring badges */}
+            <div className="flex items-center gap-1.5 flex-wrap mb-2.5">
+              <span className="inline-flex items-center gap-1.5 bg-black text-white text-[11px] font-black px-2.5 py-1 rounded-lg">
+                <Clock size={10} />
+                {ride.departure}
+              </span>
+              {isRecurring && (
+                <span className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-600 border border-indigo-100 text-[11px] font-black px-2.5 py-1 rounded-lg">
+                  <Repeat size={10} />
+                  {recurringLabel(ride.recurringDays!)}
+                </span>
+              )}
             </div>
             {/* Route */}
             <div className="flex items-center gap-2 flex-wrap">
@@ -199,12 +230,14 @@ function RideCard({ ride, onBook }: { ride: Ride; onBook: (id: string) => void }
 function FilterSheet({
   open, onClose, maxFare, setMaxFare, minRating, setMinRating,
   origin, setOrigin, destination, setDestination,
+  recurringOnly, setRecurringOnly,
 }: {
   open: boolean; onClose: () => void;
   maxFare: number; setMaxFare: (v: number) => void;
   minRating: number; setMinRating: (v: number) => void;
   origin: string; setOrigin: (v: string) => void;
   destination: string; setDestination: (v: string) => void;
+  recurringOnly: boolean; setRecurringOnly: (v: boolean) => void;
 }) {
   if (!open) return null;
   return (
@@ -220,6 +253,27 @@ function FilterSheet({
           </button>
         </div>
         <div className="px-5 py-4 space-y-6">
+
+          {/* Recurring only */}
+          <button
+            onClick={() => setRecurringOnly(!recurringOnly)}
+            className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl border-2 transition-colors ${
+              recurringOnly ? "border-indigo-400 bg-indigo-50" : "border-gray-200"
+            }`}
+          >
+            <div className="flex items-center gap-2.5 text-left">
+              <Repeat size={15} className={recurringOnly ? "text-indigo-600" : "text-gray-400"} />
+              <div>
+                <p className={`text-[13px] font-black ${recurringOnly ? "text-indigo-700" : "text-black"}`}>Recurring rides only</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">Daily, weekdays, or custom schedules</p>
+              </div>
+            </div>
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+              recurringOnly ? "border-indigo-500 bg-indigo-500" : "border-gray-300"
+            }`}>
+              {recurringOnly && <CheckCircle size={12} className="text-white" />}
+            </div>
+          </button>
 
           {/* Max fare */}
           <div>
@@ -312,6 +366,7 @@ function FindRideInner() {
   const [sortBy, setSortBy]           = useState("Departure Time");
   const [maxFare, setMaxFare]         = useState(600);
   const [minRating, setMinRating]     = useState(0);
+  const [recurringOnly, setRecurringOnly] = useState(false);
   const [user, setUser]               = useState<{ name: string } | null>(null);
   const [filterOpen, setFilterOpen]   = useState(false);
 
@@ -359,22 +414,25 @@ function FindRideInner() {
 
   const clearAll = () => {
     setOrigin(""); setDestination(""); setDateFilter("");
-    setTimeFilter(""); setMaxFare(600); setMinRating(0);
+    setTimeFilter(""); setMaxFare(600); setMinRating(0); setRecurringOnly(false);
   };
 
-  const hasFilters = origin || destination || dateFilter || timeFilter || maxFare < 600 || minRating > 0;
+  const hasFilters = origin || destination || dateFilter || timeFilter || maxFare < 600 || minRating > 0 || recurringOnly;
 
   const filtered = rides
     .filter((r) => origin      ? r.from.toLowerCase().includes(origin.toLowerCase())      : true)
     .filter((r) => destination ? r.to.toLowerCase().includes(destination.toLowerCase())   : true)
     .filter((r) => r.fare <= maxFare)
     .filter((r) => r.rating >= minRating)
+    .filter((r) => recurringOnly ? !!r.recurring : true)
     .sort((a, b) => {
       if (sortBy === "Price: Low to High") return a.fare - b.fare;
       if (sortBy === "Price: High to Low") return b.fare - a.fare;
       if (sortBy === "Rating")             return b.rating - a.rating;
       return a.departure.localeCompare(b.departure);
     });
+
+  const recurringCount = rides.filter((r) => r.recurring).length;
 
   return (
     <div className="min-h-screen bg-[#f5f5f3] flex flex-col">
@@ -464,6 +522,12 @@ function FindRideInner() {
                   <button onClick={() => setMaxFare(600)} className="hover:text-white"><X size={10} /></button>
                 </span>
               )}
+              {recurringOnly && (
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold bg-indigo-500/20 text-indigo-300 px-3 py-1.5 rounded-full">
+                  <Repeat size={10} /> Recurring only
+                  <button onClick={() => setRecurringOnly(false)} className="hover:text-white"><X size={10} /></button>
+                </span>
+              )}
               <button onClick={clearAll} className="text-[11px] font-bold text-white/40 hover:text-white/70 underline underline-offset-2">
                 Clear all
               </button>
@@ -500,6 +564,29 @@ function FindRideInner() {
             <div className="px-4 py-3 border-b border-gray-50 flex items-center gap-2">
               <SlidersHorizontal size={12} className="text-gray-400" />
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Filters</p>
+            </div>
+
+            {/* Recurring only */}
+            <div className="px-4 py-4 border-b border-gray-50">
+              <button
+                onClick={() => setRecurringOnly(!recurringOnly)}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-colors ${
+                  recurringOnly ? "border-indigo-400 bg-indigo-50" : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <Repeat size={12} className={recurringOnly ? "text-indigo-600" : "text-gray-400"} />
+                  <span className={`text-[11px] font-bold ${recurringOnly ? "text-indigo-700" : "text-gray-600"}`}>Recurring only</span>
+                </span>
+                <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                  recurringOnly ? "border-indigo-500 bg-indigo-500" : "border-gray-300"
+                }`}>
+                  {recurringOnly && <CheckCircle size={10} className="text-white" />}
+                </span>
+              </button>
+              {recurringCount > 0 && (
+                <p className="text-[10px] text-gray-400 mt-1.5 pl-1">{recurringCount} recurring ride{recurringCount !== 1 ? "s" : ""} live</p>
+              )}
             </div>
 
             <div className="px-4 py-4 border-b border-gray-50">
@@ -692,6 +779,7 @@ function FindRideInner() {
         minRating={minRating} setMinRating={setMinRating}
         origin={origin} setOrigin={setOrigin}
         destination={destination} setDestination={setDestination}
+        recurringOnly={recurringOnly} setRecurringOnly={setRecurringOnly}
       />
     </div>
   );
