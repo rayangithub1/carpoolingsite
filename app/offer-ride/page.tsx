@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Car, MapPin, Clock, Users, DollarSign, ArrowRight, CheckCircle,
-  ChevronDown, AlertCircle, Zap, Shield, Phone, FileText, Clock3,
+  ChevronDown, AlertCircle, Zap, Shield, Phone, FileText, Clock3, Repeat,
 } from "lucide-react";
 import Navbar from "@/components/Navbar"; // adjust path to match your project
 import { supabase } from "@/lib/supabaseClient";
@@ -19,8 +19,8 @@ interface FormData {
   seats: number; fare: string; recurring: boolean; recurringDays: string[];
   car: string; plateNo: string; carColor: string;
   driverName: string; driverPhone: string; notes: string;
-  femaleOnly: boolean;   // ← ADD
-  acAvailable: boolean;  // ← ADD
+  femaleOnly: boolean;
+  acAvailable: boolean;
 }
 
 interface StoredUser {
@@ -54,12 +54,24 @@ const timeSlots = [
 ];
 const carColors = ["White","Black","Silver","Grey","Red","Blue","Green","Other"];
 const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const WEEKDAYS = ["Mon","Tue","Wed","Thu","Fri"];
 const benefits = [
   { icon: DollarSign, title: "Earn back fuel costs", desc: "Cover your daily petrol with passengers splitting the fare." },
   { icon: Users,      title: "Trusted community",    desc: "Only verified Movento members can book your seats." },
   { icon: Shield,     title: "You're in control",    desc: "Set your own price, route, and departure time." },
 ];
 const todayISO = new Date().toISOString().split("T")[0];
+
+// Turns a set of selected days into the same short label used on Find a Ride
+function recurringLabel(days: string[]): string {
+  if (!days.length) return "";
+  const sorted = [...days].sort((a, b) => DAYS.indexOf(a) - DAYS.indexOf(b));
+  const key = sorted.join(",");
+  if (sorted.length === 7) return "Daily";
+  if (key === WEEKDAYS.join(",")) return "Mon–Fri";
+  if (key === "Sat,Sun") return "Weekends";
+  return sorted.join(", ");
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -173,6 +185,14 @@ function PublishedScreen({ form }: { form: FormData }) {
             </div>
           ))}
         </div>
+        {form.recurring && form.recurringDays.length > 0 && (
+          <div className="pt-4 border-t border-gray-200 mb-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Repeats</p>
+            <span className="inline-flex items-center gap-1.5 text-[12px] font-black px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100">
+              <Repeat size={11} /> {recurringLabel(form.recurringDays)}
+            </span>
+          </div>
+        )}
         {form.car && (
           <div className="pt-4 border-t border-gray-200">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Vehicle</p>
@@ -259,11 +279,11 @@ export default function OfferRidePage() {
     from: "", to: "", date: todayISO, time: "", seats: 1, fare: "",
     recurring: false, recurringDays: [], car: "", plateNo: "",
     carColor: "", driverName: "", driverPhone: "", notes: "",
-    femaleOnly: false,   // ← ADDED
-    acAvailable: false,  // ← ADDED
+    femaleOnly: false,
+    acAvailable: false,
   });
 
-  // ── FIXED: fetch LIVE verification_status from Supabase, not just stale localStorage ──
+  // ── fetch LIVE verification_status from Supabase, not just stale localStorage ──
   useEffect(() => {
     const loadUser = async () => {
       const raw = localStorage.getItem("user");
@@ -309,6 +329,14 @@ export default function OfferRidePage() {
       ? form.recurringDays.filter((d) => d !== day)
       : [...form.recurringDays, day]);
 
+  // Quick presets so drivers don't have to tap every weekday individually
+  const applyPreset = (preset: "daily" | "weekdays" | "weekends") => {
+    set("recurring", true);
+    if (preset === "daily") set("recurringDays", [...DAYS]);
+    if (preset === "weekdays") set("recurringDays", [...WEEKDAYS]);
+    if (preset === "weekends") set("recurringDays", ["Sat", "Sun"]);
+  };
+
   const validateDetails = (): boolean => {
     const e: typeof errors = {};
     if (!form.from) e.from = "Select pickup location";
@@ -317,6 +345,8 @@ export default function OfferRidePage() {
     if (!form.time) e.time = "Select departure time";
     if (!form.fare || isNaN(Number(form.fare)) || Number(form.fare) < 50)
       e.fare = "Enter a valid fare (min Rs 50)";
+    if (form.recurring && form.recurringDays.length === 0)
+      e.recurring = "Pick at least one day, or turn recurring off" as any;
     setErrors(e); return Object.keys(e).length === 0;
   };
 
@@ -340,43 +370,45 @@ export default function OfferRidePage() {
     else if (step === "review") setStep("vehicle");
   };
 
-  // ── FIXED: save directly to Supabase "rides" table instead of /api/rides ──
+  // ── save directly to Supabase "rides" table, including recurring info ──
   const handlePublish = async () => {
     if (!user?.id) {
-    alert("Session expired. Please log in again.");
-    router.push("/login");
-    return;
-  }
-  setPublishing(true);
-  try {
-    const { error } = await supabase.from("rides").insert({
-      driver_id:      user.id,
-      driver_name:    form.driverName,
-      driver_phone:   form.driverPhone,
-      from_location:  form.from,
-      to_location:    form.to,
-      date:           form.date || todayISO,
-      time:           form.time,
-      seats:          form.seats,
-      fare:           Number(form.fare),
-      car:            form.car,
-      plate_no:       form.plateNo,
-      car_color:      form.carColor,
-      notes:          form.notes,
-      female_only:    form.femaleOnly,
-      ac_available:   form.acAvailable,
-      status:         "active",
-    });
+      alert("Session expired. Please log in again.");
+      router.push("/login");
+      return;
+    }
+    setPublishing(true);
+    try {
+      const { error } = await supabase.from("rides").insert({
+        driver_id:      user.id,
+        driver_name:    form.driverName,
+        driver_phone:   form.driverPhone,
+        from_location:  form.from,
+        to_location:    form.to,
+        date:           form.date || todayISO,
+        time:           form.time,
+        seats:          form.seats,
+        fare:           Number(form.fare),
+        car:            form.car,
+        plate_no:       form.plateNo,
+        car_color:      form.carColor,
+        notes:          form.notes,
+        female_only:    form.femaleOnly,
+        ac_available:   form.acAvailable,
+        recurring:      form.recurring,
+        recurring_days: form.recurring ? form.recurringDays : [],
+        status:         "active",
+      });
 
-    if (error) throw new Error(error.message);
-    setStep("published");
-  } catch (err) {
-    console.error(err);
-    alert(err instanceof Error ? err.message : "Something went wrong. Please try again.");
-  } finally {
-    setPublishing(false);
-  }
-};
+      if (error) throw new Error(error.message);
+      setStep("published");
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setPublishing(false);
+    }
+  };
 
   if (checkingAuth) {
     return (
@@ -467,28 +499,63 @@ export default function OfferRidePage() {
                             <Input type="number" value={form.fare} onChange={(v) => set("fare", v)} placeholder="e.g. 350" prefix="Rs" />
                           </Field>
                         </div>
-                        <div className="bg-[#f9f9f8] rounded-xl p-4">
+
+                        {/* Recurring ride */}
+                        <div className={`rounded-xl p-4 border transition-colors ${form.recurring ? "bg-indigo-50/60 border-indigo-200" : "bg-[#f9f9f8] border-transparent"}`}>
                           <div className="flex items-center justify-between mb-3">
-                            <div>
-                              <p className="text-[13px] font-black">Recurring ride?</p>
-                              <p className="text-[11px] text-gray-400 mt-0.5">Offer this same ride on multiple days</p>
+                            <div className="flex items-center gap-2.5">
+                              <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${form.recurring ? "bg-indigo-500" : "bg-gray-200"}`}>
+                                <Repeat size={15} className="text-white" />
+                              </div>
+                              <div>
+                                <p className="text-[13px] font-black">Recurring ride?</p>
+                                <p className="text-[11px] text-gray-400 mt-0.5">Offer this same ride on multiple days</p>
+                              </div>
                             </div>
                             <button type="button" onClick={() => set("recurring", !form.recurring)} aria-pressed={form.recurring}
-                              className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${form.recurring ? "bg-green-500" : "bg-gray-200"}`}>
+                              className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${form.recurring ? "bg-indigo-500" : "bg-gray-200"}`}>
                               <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.recurring ? "translate-x-5" : "translate-x-0.5"}`} />
                             </button>
                           </div>
+
                           {form.recurring && (
-                            <div className="flex gap-2 flex-wrap">
-                              {DAYS.map((day) => (
-                                <button key={day} type="button" onClick={() => toggleDay(day)}
-                                  className={`text-[12px] font-bold px-3 py-1.5 rounded-lg border transition-colors ${form.recurringDays.includes(day) ? "bg-black text-white border-black" : "border-gray-200 text-gray-600 hover:border-black"}`}>
-                                  {day}
-                                </button>
-                              ))}
+                            <div className="space-y-3">
+                              {/* Presets */}
+                              <div className="flex gap-1.5 flex-wrap">
+                                {[
+                                  { id: "daily" as const,    label: "Daily" },
+                                  { id: "weekdays" as const, label: "Mon–Fri" },
+                                  { id: "weekends" as const, label: "Weekends" },
+                                ].map((p) => (
+                                  <button key={p.id} type="button" onClick={() => applyPreset(p.id)}
+                                    className="text-[11px] font-bold px-3 py-1.5 rounded-lg border border-indigo-200 bg-white text-indigo-600 hover:bg-indigo-500 hover:text-white hover:border-indigo-500 transition-colors">
+                                    {p.label}
+                                  </button>
+                                ))}
+                              </div>
+                              {/* Individual day toggles */}
+                              <div className="flex gap-2 flex-wrap">
+                                {DAYS.map((day) => (
+                                  <button key={day} type="button" onClick={() => toggleDay(day)}
+                                    className={`text-[12px] font-bold w-11 py-1.5 rounded-lg border transition-colors ${form.recurringDays.includes(day) ? "bg-indigo-500 text-white border-indigo-500" : "border-gray-200 text-gray-600 hover:border-indigo-300 bg-white"}`}>
+                                    {day}
+                                  </button>
+                                ))}
+                              </div>
+                              {form.recurringDays.length > 0 && (
+                                <p className="text-[11px] text-indigo-600 font-bold">
+                                  Repeats: {recurringLabel(form.recurringDays)}
+                                </p>
+                              )}
+                              {errors.recurring && (
+                                <p className="flex items-center gap-1 text-[11px] text-red-500 font-medium">
+                                  <AlertCircle size={11} /> {errors.recurring as string}
+                                </p>
+                              )}
                             </div>
                           )}
                         </div>
+
                         <Field label="Notes for passengers (optional)">
                           <textarea value={form.notes} onChange={(e) => set("notes", e.target.value)}
                             placeholder="e.g. Meeting point: Bahria Town Gate 1. AC available. Ladies welcome."
@@ -525,53 +592,53 @@ export default function OfferRidePage() {
                           </Field>
                         </div>
                         {/* Ride options */}
-<div className="grid sm:grid-cols-2 gap-3">
-  {/* AC Available */}
-  <button
-    type="button"
-    onClick={() => set("acAvailable", !form.acAvailable)}
-    className={`flex items-center justify-between px-4 py-3.5 rounded-xl border-2 transition-colors ${
-      form.acAvailable
-        ? "border-blue-500 bg-blue-50"
-        : "border-gray-200 hover:border-gray-300"
-    }`}
-  >
-    <div className="text-left">
-      <p className={`text-[13px] font-black ${form.acAvailable ? "text-blue-700" : "text-black"}`}>
-        AC Available
-      </p>
-      <p className="text-[11px] text-gray-400 mt-0.5">Air conditioning on</p>
-    </div>
-    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-      form.acAvailable ? "border-blue-500 bg-blue-500" : "border-gray-300"
-    }`}>
-      {form.acAvailable && <CheckCircle size={12} className="text-white" />}
-    </div>
-  </button>
+                        <div className="grid sm:grid-cols-2 gap-3">
+                          {/* AC Available */}
+                          <button
+                            type="button"
+                            onClick={() => set("acAvailable", !form.acAvailable)}
+                            className={`flex items-center justify-between px-4 py-3.5 rounded-xl border-2 transition-colors ${
+                              form.acAvailable
+                                ? "border-blue-500 bg-blue-50"
+                                : "border-gray-200 hover:border-gray-300"
+                            }`}
+                          >
+                            <div className="text-left">
+                              <p className={`text-[13px] font-black ${form.acAvailable ? "text-blue-700" : "text-black"}`}>
+                                AC Available
+                              </p>
+                              <p className="text-[11px] text-gray-400 mt-0.5">Air conditioning on</p>
+                            </div>
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                              form.acAvailable ? "border-blue-500 bg-blue-500" : "border-gray-300"
+                            }`}>
+                              {form.acAvailable && <CheckCircle size={12} className="text-white" />}
+                            </div>
+                          </button>
 
-  {/* Female Only */}
-  <button
-    type="button"
-    onClick={() => set("femaleOnly", !form.femaleOnly)}
-    className={`flex items-center justify-between px-4 py-3.5 rounded-xl border-2 transition-colors ${
-      form.femaleOnly
-        ? "border-pink-400 bg-pink-50"
-        : "border-gray-200 hover:border-gray-300"
-    }`}
-  >
-    <div className="text-left">
-      <p className={`text-[13px] font-black ${form.femaleOnly ? "text-pink-700" : "text-black"}`}>
-        Female Only
-      </p>
-      <p className="text-[11px] text-gray-400 mt-0.5">Female passengers only</p>
-    </div>
-    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-      form.femaleOnly ? "border-pink-400 bg-pink-400" : "border-gray-300"
-    }`}>
-      {form.femaleOnly && <CheckCircle size={12} className="text-white" />}
-    </div>
-  </button>
-</div>
+                          {/* Female Only */}
+                          <button
+                            type="button"
+                            onClick={() => set("femaleOnly", !form.femaleOnly)}
+                            className={`flex items-center justify-between px-4 py-3.5 rounded-xl border-2 transition-colors ${
+                              form.femaleOnly
+                                ? "border-pink-400 bg-pink-50"
+                                : "border-gray-200 hover:border-gray-300"
+                            }`}
+                          >
+                            <div className="text-left">
+                              <p className={`text-[13px] font-black ${form.femaleOnly ? "text-pink-700" : "text-black"}`}>
+                                Female Only
+                              </p>
+                              <p className="text-[11px] text-gray-400 mt-0.5">Female passengers only</p>
+                            </div>
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                              form.femaleOnly ? "border-pink-400 bg-pink-400" : "border-gray-300"
+                            }`}>
+                              {form.femaleOnly && <CheckCircle size={12} className="text-white" />}
+                            </div>
+                          </button>
+                        </div>
                         <div className="flex items-start gap-3 bg-green-50 border border-green-100 rounded-xl p-4">
                           <Shield size={16} className="text-green-600 flex-shrink-0 mt-0.5" />
                           <div>
@@ -606,8 +673,11 @@ export default function OfferRidePage() {
                           </div>
                           {form.recurring && form.recurringDays.length > 0 && (
                             <div className="mt-4 pt-4 border-t border-gray-200">
-                              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Recurring Days</p>
-                              <div className="flex gap-1.5 flex-wrap">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Repeats</p>
+                              <span className="inline-flex items-center gap-1.5 text-[11px] font-black bg-indigo-500 text-white px-2.5 py-1 rounded-lg">
+                                <Repeat size={11} /> {recurringLabel(form.recurringDays)}
+                              </span>
+                              <div className="flex gap-1.5 flex-wrap mt-2">
                                 {form.recurringDays.map((d) => (
                                   <span key={d} className="text-[11px] font-bold bg-black text-white px-2.5 py-1 rounded-lg">{d}</span>
                                 ))}
@@ -640,19 +710,19 @@ export default function OfferRidePage() {
                           </div>
                         </div>
                         {(form.femaleOnly || form.acAvailable) && (
-  <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200">
-    {form.acAvailable && (
-      <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-200">
-        AC Available
-      </span>
-    )}
-    {form.femaleOnly && (
-      <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-pink-50 text-pink-600 border border-pink-200">
-        Female Only
-      </span>
-    )}
-  </div>
-)}
+                          <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200">
+                            {form.acAvailable && (
+                              <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-200">
+                                AC Available
+                              </span>
+                            )}
+                            {form.femaleOnly && (
+                              <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-pink-50 text-pink-600 border border-pink-200">
+                                Female Only
+                              </span>
+                            )}
+                          </div>
+                        )}
                         {form.notes && (
                           <div className="bg-[#f9f9f8] rounded-xl p-5">
                             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Notes</p>
@@ -729,6 +799,17 @@ export default function OfferRidePage() {
                           <span className="text-[14px] font-black tabular-nums">Rs {row.value.toLocaleString()}</span>
                         </div>
                       ))}
+                    </div>
+                  </>
+                )}
+                {form.recurring && form.recurringDays.length > 0 && (
+                  <>
+                    <div className="h-px bg-gray-100 my-4" />
+                    <div className="flex items-center gap-2">
+                      <Repeat size={13} className="text-indigo-500 flex-shrink-0" />
+                      <span className="text-[12px] font-bold text-indigo-600">
+                        Repeats {recurringLabel(form.recurringDays)}
+                      </span>
                     </div>
                   </>
                 )}
